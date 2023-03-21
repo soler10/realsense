@@ -2,7 +2,7 @@
 
 launch rviz and camera:
 
-'roslaunch realsense2_camera opensource_tracking.launch'
+`roslaunch realsense2_camera opensource_tracking.launch`
 
 launch detection:
 
