@@ -1,0 +1,7 @@
+
+<launch>
+
+  <node pkg="realsense2_camera/scripts" type="rs2_listener2.py" name="listener_aa" output="screen">
+  </node>
+
+</launch>
