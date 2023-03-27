@@ -8,7 +8,7 @@
   <param name="use_cpu"           value="false" />
 
   <!-- Start yolov5 and ros wrapper -->
-  <node pkg="yolov5_ros" type="yolo_v5.py" name="yolov5_ros" output="screen" >
+  <node pkg="yolov5_ros" type="yolo_v5_sense_dist.py" name="yolov5_ros_no_dist" output="screen" >
     <param name="weight_path"       value="$(find yolov5_ros)/weights/best.pt"/>
     <param name="image_topic"       value="/camera/color/image_raw" />
     <param name="depth_topic"       value="/camera/depth/image_rect_raw" />

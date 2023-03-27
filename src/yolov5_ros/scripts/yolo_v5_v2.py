@@ -10,7 +10,12 @@ from std_msgs.msg import Header
 from sensor_msgs.msg import Image
 from yolov5_ros_msgs.msg import BoundingBox, BoundingBoxes
 
+from geometry_msgs.msg import PointStamped
+from sensor_msgs.msg import PointCloud2, PointField
+import sensor_msgs.point_cloud2 as pc2
+
 from cv_bridge import CvBridge, CvBridgeError
+
 
 class Yolo_Dect:
     def __init__(self):
@@ -21,13 +26,13 @@ class Yolo_Dect:
         weight_path = rospy.get_param('~weight_path', '')
         image_topic = rospy.get_param(
             '~image_topic', '/camera/color/image_raw')
+        depth_topic=rospy.get_param(
+            '~depth_topic', '/camera/depth/image_rect_raw')
+        pointcloud_topic=rospy.get_param(
+            '~pointcloud_topic', '/voxel_cloud')
         pub_topic = rospy.get_param('~pub_topic', '/yolov5/BoundingBoxes')
         self.camera_frame = rospy.get_param('~camera_frame', '')
         conf = rospy.get_param('~conf', '0.5')
-
-
-        depth_topic='/camera/depth/image_rect_raw'
-
 
         # load local repository(YoloV5:v6.0)
         self.model = torch.hub.load(yolov5_path, 'custom',
@@ -42,17 +47,21 @@ class Yolo_Dect:
         self.model.conf = conf
         self.color_image = Image()
         self.depth_image = Image()
+        self.depth_image_pc = Image()
+        self.z=[]
         self.getImageStatus = False
 
         # Load class color
         self.classes_colors = {}
 
         # image subscribe
-        self.color_sub = rospy.Subscriber(image_topic, Image, self.image_callback,
-                                          queue_size=1, buff_size=52428800)
+        self.color_sub = rospy.Subscriber(image_topic, Image, self.image_callback, queue_size=1, buff_size=52428800)
 
         # depth img subscribe
         self.depth_sub = rospy.Subscriber(depth_topic, Image, self.depth_callback,queue_size=1, buff_size=52428800)
+
+        #point cloud subscriber
+        self.pointcloud_sub = rospy.Subscriber(pointcloud_topic, PointCloud2, self.pointcloud_callback,queue_size=1, buff_size=52428800)
 
         # output publishers
         self.position_pub = rospy.Publisher(
@@ -65,16 +74,6 @@ class Yolo_Dect:
         while (not self.getImageStatus) :
             rospy.loginfo("waiting for image.")
             rospy.sleep(2)
-    
-    def depth_callback(self, img):
-        print("DEPTH CALLBACK")
-        bridge = CvBridge()
-        cv_depth = bridge.imgmsg_to_cv2(img, desired_encoding="passthrough") #results in numpy
-        print('tipoooooodfasdkfskjd  ', cv_depth)
-        #print(cv_depth.shape)
-        #print(cv_depth[240, 424])
-        self.depth_image=cv_depth
-
 
     def image_callback(self, image):
         self.boundingBoxes = BoundingBoxes()
@@ -93,22 +92,29 @@ class Yolo_Dect:
 
         cv2.waitKey(3)
 
-    def get_dist(self, center_x, center_y):
-        x_im=self.color_image.shape[0]
-        y_im=self.color_image.shape[1]
-        print(type(self.depth_image))
-        x_d=self.depth_image.shape[0]
-        y_d=self.depth_image.shape[1]
-        print('im shape - ', x_im, ',', y_im, 'd shape -', x_d,',',y_d)
-        x=int(center_x*x_d/x_im)
-        y=int(center_y*y_d/y_im)
-        print('center ', center_x, ' , ',center_y, ' punt depth ','x,y --> ', x, ' , ', y)
-        #distance = depth_image[x][y]
-        dist_prop=self.depth_image[y,x]
-        d=cv2.resize(self.depth_image, dsize=(x_im, y_im), interpolation=cv2.INTER_CUBIC)
-        distance=d[center_x,center_y]
-        print('dist prop ', dist_prop,' dist resiize ', distance)
-        return dist_prop
+    def depth_callback(self, img):
+        #print("DEPTH CALLBACK")
+        bridge = CvBridge()
+        cv_depth = bridge.imgmsg_to_cv2(img, desired_encoding="passthrough") #results in numpy
+        #print(cv_depth.shape)
+        #print(cv_depth[240, 424])
+        self.depth_image=cv_depth
+
+
+    def pointcloud_callback(self ,data):
+        #print("PC CALLBACK")
+        int_data = list(pc2.read_points(data, field_names=('x','y','z'), skip_nans=False, uvs=[]))
+        # Convert the generator to a NumPy array
+        points = np.array(list(int_data))
+        #print(points.shape)
+        d=data
+        self.depth_image_pc=points[:,0:3]
+        x=points[:,0]
+        y=points[:,1]
+        self.z=points[:,2]
+
+    
+
 
     def dectshow(self, org_img, boxs, height, width):
         img = org_img.copy()
@@ -126,28 +132,26 @@ class Yolo_Dect:
             boundingBox.ymax = np.int64(box[3])
             boundingBox.num = np.int16(count)
             boundingBox.Class = box[-1]
-            if boundingBox.Class != "Tractor":
-                if box[-1] in self.classes_colors.keys():
-                    color = self.classes_colors[box[-1]]
-                else:
-                    color = np.random.randint(0, 183, 3)
-                    self.classes_colors[box[-1]] = color
 
-                cv2.rectangle(img, (int(box[0]), int(box[1])),
-                            (int(box[2]), int(box[3])), (int(color[0]),int(color[1]), int(color[2])), 2)
+            if box[-1] in self.classes_colors.keys():
+                color = self.classes_colors[box[-1]]
+            else:
+                color = np.random.randint(0, 183, 3)
+                self.classes_colors[box[-1]] = color
 
-                if box[1] < 20:
-                    text_pos_y = box[1] + 30
-                else:
-                    text_pos_y = box[1] - 10
-                mig=[int((box[2]-box[0])/2+box[0]), int((box[3]-box[1])/2+box[1])]
-                distance=self.get_dist(mig[0],mig[1]) 
-                text=box[-1]+' '+ str(distance)
-                cv2.putText(img, text,
-                            (int(box[0]), int(text_pos_y)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.rectangle(img, (int(box[0]), int(box[1])),
+                          (int(box[2]), int(box[3])), (int(color[0]),int(color[1]), int(color[2])), 2)
+
+            if box[1] < 20:
+                text_pos_y = box[1] + 30
+            else:
+                text_pos_y = box[1] - 10
+            print(box[-1]+' aaaaa')    
+            cv2.putText(img, box[-1],
+                        (int(box[0]), int(text_pos_y)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
 
-                self.boundingBoxes.bounding_boxes.append(boundingBox)
+            self.boundingBoxes.bounding_boxes.append(boundingBox)
             self.position_pub.publish(self.boundingBoxes)
             #print('aaaaaaaaah ',self.boundingBoxes) 
         self.publish_image(img, height, width)
@@ -168,7 +172,7 @@ class Yolo_Dect:
 
 def main():
     rospy.init_node('yolov5_ros', anonymous=True)
-    yolo_dect = Yolo_Dect()
+    yolo_dect = Pointer()
     rospy.spin()
 
 
