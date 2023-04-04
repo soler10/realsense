@@ -8,7 +8,7 @@ import numpy as np
 
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image
-from yolov5_ros_msgs.msg import BoundingBox, BoundingBoxes
+from yolov5_ros.msg import BoundingBox, BoundingBoxes
 
 
 class Yolo_Dect:
@@ -84,6 +84,7 @@ class Yolo_Dect:
 
         for box in boxs:
             boundingBox = BoundingBox()
+            
             boundingBox.probability =np.float64(box[4])
             boundingBox.xmin = np.int64(box[0])
             boundingBox.ymin = np.int64(box[1])
@@ -92,6 +93,7 @@ class Yolo_Dect:
             boundingBox.num = np.int16(count)
             boundingBox.Class = box[-1]
             if boundingBox.Class != "Tractor":
+                
                 if box[-1] in self.classes_colors.keys():
                     color = self.classes_colors[box[-1]]
                 else:
@@ -110,7 +112,9 @@ class Yolo_Dect:
                             (int(box[0]), int(text_pos_y)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
 
+                #print('liniaaaa 113 ', type(self.boundingBoxes.bounding_boxes))
                 self.boundingBoxes.bounding_boxes.append(boundingBox)
+                
             self.position_pub.publish(self.boundingBoxes)
             #print('aaaaaaaaah ',self.boundingBoxes) 
         self.publish_image(img, height, width)
