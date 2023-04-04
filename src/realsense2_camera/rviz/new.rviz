@@ -88,6 +88,10 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        Canopy:
+          Value: true
+        Trunks:
+          Value: true
         camera_aligned_depth_to_color_frame:
           Value: true
         camera_color_frame:
@@ -114,6 +118,10 @@ Visualization Manager:
         map:
           odom:
             camera_link:
+              Canopy:
+                {}
+              Trunks:
+                {}
               camera_aligned_depth_to_color_frame:
                 camera_color_optical_frame:
                   {}
@@ -268,10 +276,10 @@ Visualization Manager:
       Class: rviz/PointStamped
       Color: 204; 41; 204
       Enabled: true
-      History Length: 1
+      History Length: 5
       Name: PointStamped
       Queue Size: 10
-      Radius: 0.20000000298023224
+      Radius: 0.019999999552965164
       Topic: /cep_found
       Unreliable: false
       Value: true
@@ -299,7 +307,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.9343223571777344
+      Distance: 5.302451133728027
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -338,4 +346,4 @@ Window Geometry:
     collapsed: false
   Width: 1287
   X: 1852
-  Y: 31
+  Y: 27
